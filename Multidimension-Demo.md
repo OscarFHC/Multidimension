@@ -4,13 +4,12 @@ author: "Oscar Feng-Hsun Chang"
 date: "27 December, 2020"
 output: 
   html_document:
-    css: D:/Dropbox/Courses/Multidimension/style.css
     code_folding: show
     highlight: textmate
     keep_md: yes
     number_sections: true
     theme: paper
-    toc: no
+    toc: yes
     toc_float:
       collapsed: false
       smooth_scroll: true
@@ -41,8 +40,8 @@ output:
 - Contingency table, e.g. $\chi^2$ test
 
 ## multiple dependent variable ($Y$)
-- Ordination, e.g., principle component analysis (PCA), canonical analysis (CA), NMDS
-- cluster analysis
+- Ordination, e.g., principle component analysis (PCA), canonical analysis (CA), non-metric multidimensional scaling (NMDS)
+- cluster analysis, e.g., K-means, K-medoids
 
 ## multiple dependent variable ($Y$) + single independent variable ($X$)
 - Multivariate ANOVA (MANOVA)
@@ -52,479 +51,433 @@ output:
 - Redundancy analysis (RDA)
 - Canonical correspondence analysis (CCA)
 
-Let use [air quality data in New York](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/airquality.html) to demonstrate today's topics.
-
 # Examples
 Data is from my field work.
 ![](D:/Dropbox/Courses/Multidimension/Figs/SiteMap.png)
-- Zooplankton species composition: site by species in density (ind./ml) table
 
-
-
-
+- Environmental data for each lake
 
 ```r
 Field.raw <- read.table(file = "https://raw.githubusercontent.com/OscarFHC/OmniBEF_FieldNLA_public/master/FieldDat_raw.csv", 
                         sep = ",", header = TRUE)
+head(Field.raw[, c(4:6, 8:10)])
 ```
 
+```
+##     pH  Cond Temp       PAR  TN_mean  TP_mean
+## 1 8.33 408.8 21.9 0.5600000 20.68208 23.75631
+## 2 8.61 257.7 20.8 0.6416667 63.02927 24.27327
+## 3 8.19 358.7 20.6 0.4730539 40.83156 15.87882
+## 4 8.23 314.8 24.5 0.3636364 28.14599 15.26339
+## 5 8.30 256.3 26.4 0.3529412 37.36898 16.66657
+## 6 8.58  93.9 27.6 0.6393443 52.13870 15.53418
+```
 
-
-## PCA
-
-
-
-
-
-
-Let use [air quality data in New York](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/airquality.html) to demonstrate today's topics.
-
+- Zooplankton species composition: site by species in density (ind./ml) table
 
 ```r
-data("airquality")
-head(airquality, 15)
+zp.raw <- read.table(file = "https://raw.githubusercontent.com/OscarFHC/Multidimension/main/Data/Field_zpComm.csv", 
+                        sep = ",", header = TRUE)
+zp <- zp.raw[,2:52]
+head(zp[,1:10])
 ```
 
 ```
-##    Ozone Solar.R Wind Temp Month Day
-## 1     41     190  7.4   67     5   1
-## 2     36     118  8.0   72     5   2
-## 3     12     149 12.6   74     5   3
-## 4     18     313 11.5   62     5   4
-## 5     NA      NA 14.3   56     5   5
-## 6     28      NA 14.9   66     5   6
-## 7     23     299  8.6   65     5   7
-## 8     19      99 13.8   59     5   8
-## 9      8      19 20.1   61     5   9
-## 10    NA     194  8.6   69     5  10
-## 11     7      NA  6.9   74     5  11
-## 12    16     256  9.7   69     5  12
-## 13    11     290  9.2   66     5  13
-## 14    14     274 10.9   68     5  14
-## 15    18      65 13.2   58     5  15
+##     X83936   X125923     X59270    X59074   X58633   X125904   X83971    X88634
+## 1 12.92776  12.92776   12.92776  25.85552 12.92776  12.92776 12.92776  77.56657
+## 2 20.52576 143.68032  759.45310 431.04095  0.00000   0.00000  0.00000 184.73183
+## 3  0.00000  33.89607  101.68822   0.00000  0.00000   0.00000  0.00000 271.16858
+## 4  0.00000 173.96746  154.63775  19.32972  0.00000   0.00000  0.00000 135.30803
+## 5  0.00000   0.00000 1442.30769   0.00000  0.00000 346.15385  0.00000 403.84615
+## 6  0.00000   0.00000  234.91797   0.00000  0.00000   0.00000  0.00000 249.60034
+##     X88599     aaaaa
+## 1 25.85552  38.78329
+## 2  0.00000 513.14398
+## 3  0.00000  33.89607
+## 4 19.32972 212.62690
+## 5  0.00000 692.30769
+## 6 14.68237 499.20069
 ```
+
+## multiple dependent variable ($Y$)
+- Ordination, e.g., principle component analysis (PCA), canonical analysis (CA), non-metric multidimensional scaling (NMDS)
+- cluster analysis, e.g., K-means, K-medoids
+
+### PCA
+#### PCA by environmental variables 
 
 ```r
-airquality = airquality %>%
-  subset(is.na(Solar.R)==FALSE & is.na(Ozone)==FALSE)
+envi <- as.data.frame(scale(Field.raw[, c(4:6, 8:10)], center = TRUE, scale = TRUE))
+enviPCA <- prcomp(envi)
+autoplot(enviPCA, loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
 ```
 
-# Recap
+![](Multidimension-Demo_files/figure-html/envi PCA-1.png)<!-- -->
 
-- Correlation describes whether there is "interdependence" between two variables.
-- Regression is to find the best model to relate the response variables (Y) to the explanatory variables, so that we can estimate  the model parameters for making inferences or forcasting. 
-
-# Multiple Regression
-
-Last time, we only deal with one explanatory variable (X). If we want to know how the response variable (Y) can be explained by multiple explanatory variable, we will have to do multiple regression
-
-## Collinearity 
-
-First thing is to know what explanatory variables should be included in the model.  
-The most important thing is to know your system and decide what should be included. This is where explanatory data analysis is important. 
-
-### useful `pair()` function 
-
-The `pair()` function allows you to have a glimpse of the relationship among the variables. 
-
-
-
+#### PCA by zooplankton spcies
 
 ```r
-pairs(airquality[,c(1:4)], lower.panel=panel.lm, upper.panel=panel.cor)
+zp <- as.data.frame(scale(zp, center = TRUE, scale = TRUE))
+spPCA <- prcomp(zp)
+autoplot(spPCA, loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
 ```
 
-![](Multidimension-Demo_files/figure-html/pairs-1.png)<!-- -->
+![](Multidimension-Demo_files/figure-html/sp PCA-1.png)<!-- -->
 
-### `cor()` function 
-
-Correlation coefficients can also be calculated to help you understand the linear dependency among each variable. 
-
+#### NMDS by environmental variables
+There is no "variation explained" in NMDS. 
 
 ```r
-cor(airquality[,c(1:4)], use="na.or.complete")
+enviNMDS <- metaMDS(Field.raw[, c(4:6, 8:10)], k=2, trymax=100)
 ```
 
 ```
-##              Ozone    Solar.R       Wind       Temp
-## Ozone    1.0000000  0.3483417 -0.6124966  0.6985414
-## Solar.R  0.3483417  1.0000000 -0.1271835  0.2940876
-## Wind    -0.6124966 -0.1271835  1.0000000 -0.4971897
-## Temp     0.6985414  0.2940876 -0.4971897  1.0000000
-```
-
-In general, we don't want the explanatory varaibles in the model to be higly correlated. Otherwise it will bias the estimates of the regresion coefficients of explanaroty variables.  
-
-Take a look of the following simple example that demonstrate the impact of having highly correlated explanatory variables.  
-First we use a known $Y$ to generate two $X$ variables, so that we know what are the true relationship between $X$ and $Y$ and what the regression coefficients should be.  
-Specifically, I have 201 $Y$ values evenly ranged from 0 to 20. I generated $X_1$ by the formula, $Y = 3X_1 + 2 + noise$, so that the regression coefficient of $Y$ on $X_1$ should be around 3. Similarily, I generated $X_2$ by a different formula, $Y = 2X_2 - 3 + noise$, so that the regression coefficient of $Y$ on $X_2$ should be around 2. 
-
-
-```r
-Y = seq(from=0, to=20, by=0.1)
-X1 = (Y-2)/3 + runif(length(Y), min=0.5, max=2)
-X2 = (Y+3)/2 + runif(length(Y), min=0.5, max=2)
-df = as.data.frame(cbind(Y, X1, X2))
-summary(lm(Y~X1, data=df))
-```
-
-```
-## 
-## Call:
-## lm(formula = Y ~ X1, data = df)
-## 
-## Residuals:
-##      Min       1Q   Median       3Q      Max 
-## -2.42585 -1.14203  0.08924  1.10423  2.29548 
-## 
-## Coefficients:
-##             Estimate Std. Error t value Pr(>|t|)    
-## (Intercept) -1.42470    0.20631  -6.906 6.57e-11 ***
-## X1           2.92567    0.04735  61.793  < 2e-16 ***
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-## Residual standard error: 1.298 on 199 degrees of freedom
-## Multiple R-squared:  0.9505,	Adjusted R-squared:  0.9502 
-## F-statistic:  3818 on 1 and 199 DF,  p-value: < 2.2e-16
-```
-
-```r
-summary(lm(Y~X2, data=df))
-```
-
-```
-## 
-## Call:
-## lm(formula = Y ~ X2, data = df)
-## 
-## Residuals:
-##      Min       1Q   Median       3Q      Max 
-## -1.69751 -0.71126 -0.09628  0.78852  1.60472 
-## 
-## Coefficients:
-##             Estimate Std. Error t value Pr(>|t|)    
-## (Intercept) -4.99376    0.16687  -29.93   <2e-16 ***
-## X2           1.94020    0.02017   96.21   <2e-16 ***
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-## Residual standard error: 0.846 on 199 degrees of freedom
-## Multiple R-squared:  0.979,	Adjusted R-squared:  0.9788 
-## F-statistic:  9257 on 1 and 199 DF,  p-value: < 2.2e-16
-```
-
-So far so good. But if we what to have both $X_1$ and $X_2$ in the linear regression model, the regression coefficients for both $X_1$ and $X_2$ are way off the true values. This is because $X_1$ and $X_2$ are highly correlated, which we can see from the correlation plot the correlation coefficient between $X_1$ and $X_2$. 
-
-
-```r
-summary(lm(Y~X1+X2, data=df))
-```
-
-```
-## 
-## Call:
-## lm(formula = Y ~ X1 + X2, data = df)
-## 
-## Residuals:
-##     Min      1Q  Median      3Q     Max 
-## -1.5837 -0.5664 -0.0123  0.5495  1.3672 
-## 
-## Coefficients:
-##             Estimate Std. Error t value Pr(>|t|)    
-## (Intercept) -4.13552    0.16980 -24.355   <2e-16 ***
-## X1           0.88944    0.09842   9.037   <2e-16 ***
-## X2           1.37971    0.06431  21.454   <2e-16 ***
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-## Residual standard error: 0.7136 on 198 degrees of freedom
-## Multiple R-squared:  0.9851,	Adjusted R-squared:  0.985 
-## F-statistic:  6546 on 2 and 198 DF,  p-value: < 2.2e-16
+## Square root transformation
+## Wisconsin double standardization
+## Run 0 stress 0.1056573 
+## Run 1 stress 0.1056573 
+## ... Procrustes: rmse 1.341388e-05  max resid 4.971588e-05 
+## ... Similar to previous best
+## Run 2 stress 0.1056573 
+## ... Procrustes: rmse 6.376243e-06  max resid 2.889569e-05 
+## ... Similar to previous best
+## Run 3 stress 0.1056574 
+## ... Procrustes: rmse 0.0001558608  max resid 0.0007523763 
+## ... Similar to previous best
+## Run 4 stress 0.1056573 
+## ... New best solution
+## ... Procrustes: rmse 4.224001e-06  max resid 1.615253e-05 
+## ... Similar to previous best
+## Run 5 stress 0.1177956 
+## Run 6 stress 0.1058689 
+## ... Procrustes: rmse 0.01289228  max resid 0.06814914 
+## Run 7 stress 0.1058689 
+## ... Procrustes: rmse 0.01290599  max resid 0.06820472 
+## Run 8 stress 0.1056573 
+## ... New best solution
+## ... Procrustes: rmse 4.473154e-06  max resid 1.646961e-05 
+## ... Similar to previous best
+## Run 9 stress 0.1058689 
+## ... Procrustes: rmse 0.01288492  max resid 0.06811991 
+## Run 10 stress 0.1056573 
+## ... Procrustes: rmse 1.180951e-05  max resid 4.042318e-05 
+## ... Similar to previous best
+## Run 11 stress 0.1058689 
+## ... Procrustes: rmse 0.01289089  max resid 0.06814509 
+## Run 12 stress 0.1178729 
+## Run 13 stress 0.3970367 
+## Run 14 stress 0.1056573 
+## ... Procrustes: rmse 5.040008e-05  max resid 0.0002339205 
+## ... Similar to previous best
+## Run 15 stress 0.1058689 
+## ... Procrustes: rmse 0.01289519  max resid 0.06816143 
+## Run 16 stress 0.1058689 
+## ... Procrustes: rmse 0.01291264  max resid 0.06823333 
+## Run 17 stress 0.3900224 
+## Run 18 stress 0.1056573 
+## ... Procrustes: rmse 1.323155e-05  max resid 6.240596e-05 
+## ... Similar to previous best
+## Run 19 stress 0.1056573 
+## ... Procrustes: rmse 1.000161e-05  max resid 3.161194e-05 
+## ... Similar to previous best
+## Run 20 stress 0.1058689 
+## ... Procrustes: rmse 0.01288298  max resid 0.06811209 
+## *** Solution reached
 ```
 
 ```r
-plot(X1~X2)
+plot(enviNMDS)
+```
+
+![](Multidimension-Demo_files/figure-html/envi NMDS-1.png)<!-- -->
+
+### K-means
+
+
+```r
+set.seed(1032)
+autoplot(kmeans(envi, 2), data = envi)
+```
+
+```
+## Warning: `select_()` is deprecated as of dplyr 0.7.0.
+## Please use `select()` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_warnings()` to see where this warning was generated.
+```
+
+![](Multidimension-Demo_files/figure-html/envi Kmeans-1.png)<!-- -->
+
+```r
+autoplot(kmeans(envi, 3), data = envi)
+```
+
+![](Multidimension-Demo_files/figure-html/envi Kmeans-2.png)<!-- -->
+
+```r
+autoplot(kmeans(envi, 4), data = envi)
+```
+
+![](Multidimension-Demo_files/figure-html/envi Kmeans-3.png)<!-- -->
+
+**Within group variation** (total within sum of square) to determine the number of cluster
+
+```r
+set.seed(1032)
+envik2 <- kmeans(envi, 2)
+envik2
+```
+
+```
+## K-means clustering with 2 clusters of sizes 30, 7
+## 
+## Cluster means:
+##           pH        Cond        Temp        PAR    TN_mean    TP_mean
+## 1 -0.3600142  0.04709678 -0.09000433  0.0656248 -0.2638636 -0.3453918
+## 2  1.5429182 -0.20184332  0.38573282 -0.2812492  1.1308438  1.4802506
+## 
+## Clustering vector:
+##  [1] 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 2 2 2 2 1 2 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1
+## 
+## Within cluster sum of squares by cluster:
+## [1] 113.05359  50.11751
+##  (between_SS / total_SS =  24.5 %)
+## 
+## Available components:
+## 
+## [1] "cluster"      "centers"      "totss"        "withinss"     "tot.withinss"
+## [6] "betweenss"    "size"         "iter"         "ifault"
+```
+
+
+
+```r
+set.seed(1032)
+wss <- function(k) {
+  kmeans(df, k, nstart = 10 )$tot.withinss
+}
+
+wss <- c()
+for (i in 1:ncol(envi)){
+  kn <- kmeans(envi, i)
+  wss <- c(wss, kn$tot.withinss)
+}
+
+plot(wss ~ c(1:ncol(envi)),
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+```
+
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-2-1.png)<!-- -->
+
+
+```r
+set.seed(1032)
+autoplot(kmeans(envi, 2), data = envi, frame = TRUE)
+```
+
+```
+## Warning: `group_by_()` is deprecated as of dplyr 0.7.0.
+## Please use `group_by()` instead.
+## See vignette('programming') for more help
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_warnings()` to see where this warning was generated.
 ```
 
 ![](Multidimension-Demo_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
 
+### K-medoids
+minimizes a sum of dissimilarities instead of a sum of squared 
+
 ```r
-cor(X1, X2)
+set.seed(1032)
+
+width <- c()
+for (i in 1:ncol(envi)){
+  width <- c(width, pam(envi, i)$silinfo$avg.width)
+}
+
+plot(width ~ c(2:ncol(envi)),
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters similarity (silhouette)")
 ```
 
-```
-## [1] 0.9643834
-```
-
----------------------------------------------------------------------------------------------------------------------------------
-
-__Exercise 1__
-
-Manipulate the above code to reduce the correlation between $X_1$ and $X_2$ and recalculate the regression coefficients. Explain what you find. 
-
-*hint:* Increase the random noise of $X_1$ and $X_2$ so that the two can be less correlated.
-
-
-
----------------------------------------------------------------------------------------------------------------------------------
-
-In the worst case, if two explanatory varaibles are perfectly correlated, regression coefficients can not be estimates. Take the following creative case for example...
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
 
 
 ```r
-y=seq(from=1, to=20, by=0.1)
-y=runif(length(y), min=3, max=5)
-x1=seq(from=5, to=24, by=0.1)
-x2=x1*2+5
-df = data.frame(y, x1, x2)
-pairs(df)
+set.seed(1032)
+autoplot(pam(envi, 3), frame = TRUE)
 ```
 
-![](Multidimension-Demo_files/figure-html/perfect collinearity-1.png)<!-- -->
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
+## multiple dependent variable ($Y$) + single independent variable ($X$)
+- Multivariate ANOVA (MANOVA)
+- Discriminant analysis
+
+### Multivariate ANOVA (MANOVA)
+
+Add `group` to indicate the grouping number
 
 ```r
-cor(df)
+set.seed(1032)
+envi_K3 <- pam(envi, 3)
+
+envi <- envi %>% mutate(group = envi_K3$clustering)
+
+head(envi)
 ```
 
 ```
-##              y          x1          x2
-## y   1.00000000 -0.03919429 -0.03919429
-## x1 -0.03919429  1.00000000  1.00000000
-## x2 -0.03919429  1.00000000  1.00000000
+##            pH        Cond         Temp        PAR     TN_mean     TP_mean group
+## 1 -0.68021921 -0.01345254 -1.307179826  0.8414573 -0.68395332  0.26019313     1
+## 2 -0.08250326 -1.09404327 -1.859528444  1.2574495 -0.04676913  0.28624607     1
+## 3 -0.97907719 -0.37174239 -1.959955466  0.3985727 -0.38077078 -0.13680408     1
+## 4 -0.89368919 -0.68569297 -0.001628546 -0.1587763 -0.57164636 -0.16781949     2
+## 5 -0.74426021 -1.10405536  0.952428158 -0.2132553 -0.43287098 -0.09710436     2
+## 6 -0.14654426 -2.26545798  1.554990287  1.2456197 -0.21063593 -0.15417271     2
 ```
 
-
-
-We can see that when x1 and x2 are perfectly correlated, regression coefficients of one of them can not be estimated. This is a rather extreme and simple example that you might never encounter in your entire life, but it is worthy to be aware the this is due to the problem of [singularity](https://en.wikipedia.org/wiki/Singularity_(mathematics)) in matrix algebra. 
-
-Another more formal way to diagnose how the magnitude of collinearity among explanatory variables is the [variance inflation factor (VIF)](https://en.wikipedia.org/wiki/Variance_inflation_factor).  
-
-$$VIF_i = \frac{1}{1 -{R_i}^2}$$, where ${R_i}^2$ is the ${R}^2$ of the linear model with ${X_i}$ being the response variable (i.e. at the left side of the equation) and the other ${X_s}$ being the explanatory variables (at the right hand side of the equation).  
-To the best of my knowledge, there is no built-in funciton that allows us to calculate VIF automatically, so we'll have to write our own...In fact, it's not hard to write. For example the VIF for radiation can be calculated as follow. 
-
-
-
+Perform MANOVA to test grouping significance
 
 ```r
-vif.rad = 1/(1 - summary(lm(Solar.R~Wind+Ozone, dat=airquality))$r.squared)
-vif.rad
+envi_MAN <- manova(cbind(pH, Cond, Temp, PAR, TN_mean, TP_mean) ~ group, data = envi)
+summary(envi_MAN)
 ```
 
 ```
-## [1] 1.153704
+##           Df  Pillai approx F num Df den Df    Pr(>F)    
+## group      1 0.75855   15.709      6     30 4.499e-08 ***
+## Residuals 35                                             
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
 
-Generally we want the VIP to be smaller than 5 or 10 (some say 20). However, neither VIF or correlation coefficients or plots are not strick rules to determine whether a correlated variables should be discard from the model or not. They only alert you the potential bias that could result from collinearity. 
-
-## Model comparision
-
-### $F$-test
-
-After deciding which explanatory variables to include in the model, the next step is to compare each model. A common way to compare the model is to do $F$-test. The concept of $F$-test is to compare the ability of the models to explain the varaiance of the response varaible. To do so, $F$-statistic is calculated by the following formula,
-
-$$F = \frac {(\frac{RSS_1-RSS_2}{p_2-p_1})}{(\frac{RSS_2}{n-p_2})}\ ,$$
-
-where $RSS_i$ is the residual sum of square of $model_i$, $p_i$ number of parameters in $model_i$, $n$ is the sample size. Basically, $n-p_i$ is the degree of freedom of $model_i$. The probability of this $F$-statistic in the $F$ distibution (with degree of freedom $p_2-p_1$ and $n-p_2$), is the probability for model 1 to explain same amount of variance with model 2. 
-
-Let's compare the following two models with the Ozone data set.
-
-$$Model_1: Temp = \beta_0 + \beta_1 * Wind + \epsilon_1$$
-
-$$Model_2: Temp = \beta_0' + \beta_1' * Wind + + \beta_2' * Radiation + \epsilon_2$$
-
-Here $Model_1$ is nested in $Model_2$, because if we let all levels of Radiation to have same effects on Temperature, we have $Model_1$. 
+Look for the variable(s) that is different among group
 
 
 ```r
-mod1 = lm(Temp~Wind, data=airquality)
-summary(mod1)
+summary.aov(envi_MAN)
 ```
 
 ```
+##  Response pH :
+##             Df Sum Sq Mean Sq F value Pr(>F)
+## group        1  0.203 0.20269  0.1982 0.6589
+## Residuals   35 35.797 1.02278               
 ## 
+##  Response Cond :
+##             Df Sum Sq Mean Sq F value Pr(>F)
+## group        1  0.822 0.82202  0.8179  0.372
+## Residuals   35 35.178 1.00509               
+## 
+##  Response Temp :
+##             Df Sum Sq Mean Sq F value Pr(>F)
+## group        1  1.668 1.66799  1.7004 0.2007
+## Residuals   35 34.332 0.98091               
+## 
+##  Response PAR :
+##             Df Sum Sq Mean Sq F value    Pr(>F)    
+## group        1 19.579 19.5789  41.731 1.923e-07 ***
+## Residuals   35 16.421  0.4692                      
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##  Response TN_mean :
+##             Df Sum Sq Mean Sq F value Pr(>F)
+## group        1  0.202 0.20186  0.1974 0.6596
+## Residuals   35 35.798 1.02280               
+## 
+##  Response TP_mean :
+##             Df Sum Sq Mean Sq F value Pr(>F)
+## group        1    2.3 2.30045  2.3892 0.1312
+## Residuals   35   33.7 0.96284
+```
+
+### Discriminant analysis
+To find a linear combination of features that characterizes or separates two or more classes of objects or events
+
+```r
+envi_LDA <- lda(group ~ pH + Cond + Temp + PAR + TN_mean + TP_mean, data = envi)
+envi_LDA
+```
+
+```
 ## Call:
-## lm(formula = Temp ~ Wind, data = airquality)
+## lda(group ~ pH + Cond + Temp + PAR + TN_mean + TP_mean, data = envi)
 ## 
-## Residuals:
-##     Min      1Q  Median      3Q     Max 
-## -19.112  -5.646   1.014   6.254  18.888 
+## Prior probabilities of groups:
+##         1         2         3 
+## 0.2702703 0.4864865 0.2432432 
 ## 
-## Coefficients:
-##             Estimate Std. Error t value Pr(>|t|)    
-## (Intercept)  91.0305     2.3489  38.754  < 2e-16 ***
-## Wind         -1.3318     0.2226  -5.983 2.84e-08 ***
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## Group means:
+##           pH       Cond       Temp         PAR    TN_mean    TP_mean
+## 1 -0.4838268  0.5058889 -0.8753436  0.92621912 -0.3813532 -0.1448050
+## 2  0.4286387 -0.3426994  0.6600739  0.04162149  0.3150043  0.5279240
+## 3 -0.3196921  0.1232999 -0.3475438 -1.11237534 -0.2062828 -0.8949537
 ## 
-## Residual standard error: 8.306 on 109 degrees of freedom
-## Multiple R-squared:  0.2472,	Adjusted R-squared:  0.2403 
-## F-statistic: 35.79 on 1 and 109 DF,  p-value: 2.842e-08
+## Coefficients of linear discriminants:
+##                 LD1        LD2
+## pH       0.57405055 -0.3758025
+## Cond    -0.41165484  0.4236530
+## Temp    -0.03548875 -1.2226172
+## PAR     -1.77297270  0.2322527
+## TN_mean -0.32741994 -0.0627681
+## TP_mean -1.19627528 -0.5038526
+## 
+## Proportion of trace:
+##   LD1   LD2 
+## 0.606 0.394
 ```
-
-```r
-mod2 = lm(Temp~Wind+Solar.R, data=airquality)
-summary(mod2)
-```
-
-```
-## 
-## Call:
-## lm(formula = Temp ~ Wind + Solar.R, data = airquality)
-## 
-## Residuals:
-##      Min       1Q   Median       3Q      Max 
-## -17.2714  -5.0237   0.5837   5.2545  18.4608 
-## 
-## Coefficients:
-##              Estimate Std. Error t value Pr(>|t|)    
-## (Intercept) 85.702275   2.925445  29.295  < 2e-16 ***
-## Wind        -1.251870   0.217207  -5.763 7.89e-08 ***
-## Solar.R      0.024533   0.008478   2.894  0.00461 ** 
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-## Residual standard error: 8.039 on 108 degrees of freedom
-## Multiple R-squared:  0.3014,	Adjusted R-squared:  0.2884 
-## F-statistic: 23.29 on 2 and 108 DF,  p-value: 3.886e-09
-```
-
-Before comparison, one thing can be pointed out. The regression coefficient of wind in the two models change a little. This is because wind and radiation is not perfectly independent. You should be able to see the regression coefficient of radiation does change a little bit. 
-
-Let's compare the two models. Since we know that it follows $F$ distribution, we use `anova()` function to perform the `F-test`. 
 
 
 ```r
-anova(mod1, mod2)
+cbind(envi, predict(envi_LDA)$x) %>%
+  ggplot(aes(LD1, LD2, color = as.factor(group))) +
+  geom_point() +
+  labs(color = "group")
 ```
 
-```
-## Analysis of Variance Table
-## 
-## Model 1: Temp ~ Wind
-## Model 2: Temp ~ Wind + Solar.R
-##   Res.Df    RSS Df Sum of Sq      F   Pr(>F)   
-## 1    109 7520.7                                
-## 2    108 6979.5  1    541.17 8.3739 0.004606 **
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-```
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
 
-From the output table, we see that $RSS$ of _mod2_ is 6979.506 and the $RSS$ of _mod1_ is 7520.672. The $F$ statistic is 8.374. The interpretation of these results is that _mod2_ explains significantly greater amount of varaince comparing to _mod1_, because the probability for _mod1_ to explain the same amount of variance as _mod2_ is 0.004606. 
+## multiple dependent variable ($Y$) + multiple independent variable ($X$)
+- Redundancy analysis (RDA)
+- Canonical correspondence analysis (CCA)
 
----------------------------------------------------------------------------------------------------------------------------------
-
-__Exercise 2__ 
-
-[Bonus, 2 pts] Challenge yourself by calculateing the $RSS$ of the two models, $F$ statistics (1 pt) and the p-value (1 pt) all by yourself (i.e. not using the `anova()` function)
-
-
-
-1. Compare a third model (_mod3_) with ozone varaible as the third independent variable to _mod1_ and _mod2_ above. Does it explain more variance? Does it give you reasonable estimate of regressino coefficients?
-
-
-
----------------------------------------------------------------------------------------------------------------------------------
-
-> <span style="color:red"> Important </span> 
-> $F$-test can only be used to compare the "_nested_" models!
-
-### Other methods of model comparision/selection
-
-There are at least two other way to compare different models.  
-
-1. Likelihood ratio test. This is very useful especially when comparing non linear models. However, like the $F$-test, the model will also need to be nested for a valid likelihood ratio test. Basically, it it calculating the maximum likelihood of different models, and take the ratio of the two. This ratio will follow $\chi^2$ distribution. Similarily, by finding the probability of observatin the ratio according to the $\chi^2$ distribution, we can know which model performs better. The performance of the model in this sense is not the amount of variance of response variable being explained, but the likelihood of the model to generate the observed data. The model that has higer probability is considered as the "better" model.  
-
-2. [AIC](https://en.wikipedia.org/wiki/Akaike_information_criterion) value comparison. AIC is the informatino cirteria based on the maximum likelihood of the model. AIC is expecially useful when comparing non-nested models. The AIC can not give us an idea about how probable one model is comparing to another. Instead, it only informs which mode would loss less information while taking the number of parameters into account. Generally, the smaller the AIC is the less information is lossed (better performed model). The rule of thumb is that AIC difference greater than 10 can be considered as a significant difference, although there is not strict rules especially when AIC difference is 4-7. 
-
-Many other [model comparision/selection](https://en.wikipedia.org/wiki/Model_selection) methods are available. However, they are beyond the scope of this class. 
-
----------------------------------------------------------------------------------------------------------------------------------
-
-__Exercise 3__
-
-Compare the AIC of the three models above _mod1_, _mod2_, and _mod3_. Do you have different conclusion in terms of which model performs better?
-
-
-
----------------------------------------------------------------------------------------------------------------------------------
-
-## Ockham's razor
-
-Paremeters should be used with parsimony in modeling, so that any parameter that does not significantly contribute to the model (e.g. increase the $R^2$ in an important way) should be eliminated. 
-
-
-## Partial regresion coefficient
-
-Let say we decide to use _mod2_ as the final model to explain the data. How do we interprete the regression coefficients?
-
-The regression coefficient of Wind variable is the effect of Wind on Temperature when the effect of Radiation is being controlled for. 
-
-This coefficient can also be calculated by the following linear regressin model.
-
-$$Temp_{res|rad} = \beta_0 + \beta_1 Wind_{res|rad}\ ,$$
-
-where $Temp_{res|rad}$ is the residuals of temperature regressed on radiation and $Wind_{res|rad}$ is the residuals of wind regressed on radiation. From the formula, we see that the effects of wind is estimated when taking the influences of radiation into account. 
+### Redundancy analysis (RDA)
 
 
 ```r
-mod.r = lm(Temp~Solar.R, data=airquality)
-mod.wr = lm(Wind~Solar.R, data=airquality)
-summary(lm(residuals(mod.r)~residuals(mod.wr)))
+RDA <- capscale(zp ~ pH + Cond + Temp + PAR + TN_mean + TP_mean, data = envi)
+plot(RDA)
 ```
 
-```
-## 
-## Call:
-## lm(formula = residuals(mod.r) ~ residuals(mod.wr))
-## 
-## Residuals:
-##      Min       1Q   Median       3Q      Max 
-## -17.2714  -5.0237   0.5837   5.2545  18.4608 
-## 
-## Coefficients:
-##                     Estimate Std. Error t value Pr(>|t|)    
-## (Intercept)        3.578e-16  7.595e-01    0.00        1    
-## residuals(mod.wr) -1.252e+00  2.162e-01   -5.79 6.87e-08 ***
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-## Residual standard error: 8.002 on 109 degrees of freedom
-## Multiple R-squared:  0.2352,	Adjusted R-squared:  0.2282 
-## F-statistic: 33.53 on 1 and 109 DF,  p-value: 6.874e-08
-```
-
-We see the estimated effect is -1.2518703 identical to the one estimated from the multiple regression (-1.2518703). This coefficient is the partical regression coefficient. 
-
-Note that this is different from the following model.
-
-$$Temp_{res|rad} = \beta_0' + \beta_1' Wind\ ,$$
-
-The above model does not take the influences of Radiation on Wind into account. 
-
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-11-1.png)<!-- -->
 
 ```r
-summary(lm(residuals(mod.r)~Wind, data=airquality))
+plot(RDA, display = c("sites", "cn"))
 ```
 
-```
-## 
-## Call:
-## lm(formula = residuals(mod.r) ~ Wind, data = airquality)
-## 
-## Residuals:
-##      Min       1Q   Median       3Q      Max 
-## -17.9540  -5.1651   0.8188   5.3440  18.3525 
-## 
-## Coefficients:
-##             Estimate Std. Error t value Pr(>|t|)    
-## (Intercept)   12.242      2.268   5.397 4.00e-07 ***
-## Wind          -1.232      0.215  -5.729 9.08e-08 ***
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-## Residual standard error: 8.022 on 109 degrees of freedom
-## Multiple R-squared:  0.2314,	Adjusted R-squared:  0.2244 
-## F-statistic: 32.82 on 1 and 109 DF,  p-value: 9.078e-08
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-11-2.png)<!-- -->
+
+Can manually determine how to calculate the dissimilarity among sites
+
+```r
+zp.raw <- read.table(file = "https://raw.githubusercontent.com/OscarFHC/Multidimension/main/Data/Field_zpComm.csv", 
+                        sep = ",", header = TRUE)
+zp <- zp.raw[,2:52]
+RDA_br <- capscale(zp ~ pH + Cond + Temp + PAR + TN_mean + TP_mean, data = envi, distance = "bray")
+plot(RDA_br)
 ```
 
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-12-1.png)<!-- -->
+
+```r
+plot(RDA_br, display = c("sites", "cn"))
+```
+
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-12-2.png)<!-- -->

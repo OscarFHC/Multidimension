@@ -4,13 +4,12 @@ author: "Oscar Feng-Hsun Chang"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document:
-    css: D:/Dropbox/Courses/Multidimension/style.css
     code_folding: show
     highlight: textmate
     keep_md: yes
     number_sections: true
     theme: paper
-    toc: no
+    toc: yes
     toc_float:
       collapsed: false
       smooth_scroll: true
@@ -21,7 +20,7 @@ output:
 \newcommand\var[1]{\mathrm{Var}\left[{#1}\right]}
 
 ```{r, set global theme, include=FALSE}
-knitr::opts_chunk$set(fig.width=10, fig.height=10)
+knitr::opts_chunk$set(fig.width=5, fig.height=5)
 ```
 
 ```{r, library loading, echo=FALSE, message=FALSE}
@@ -29,6 +28,11 @@ library(rmarkdown)
 library(knitr) # Run R Code Chunks
 library(ggplot2) # For plotting
 library(tidyverse)
+library(ggfortify)
+library(ggvegan)
+library(vegan)
+library(cluster)
+library(MASS)
 ```
 
 
@@ -48,8 +52,8 @@ library(tidyverse)
 - Contingency table, e.g. $\chi^2$ test
 
 ## multiple dependent variable ($Y$)
-- Ordination, e.g., principle component analysis (PCA), canonical analysis (CA), NMDS
-- cluster analysis
+- Ordination, e.g., principle component analysis (PCA), canonical analysis (CA), non-metric multidimensional scaling (NMDS)
+- cluster analysis, e.g., K-means, K-medoids
 
 ## multiple dependent variable ($Y$) + single independent variable ($X$)
 - Multivariate ANOVA (MANOVA)
@@ -59,300 +63,174 @@ library(tidyverse)
 - Redundancy analysis (RDA)
 - Canonical correspondence analysis (CCA)
 
-Let use [air quality data in New York](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/airquality.html) to demonstrate today's topics.
-
 # Examples
 Data is from my field work.
 ![](D:/Dropbox/Courses/Multidimension/Figs/SiteMap.png)
-- Zooplankton species composition: site by species in density (ind./ml) table
-```{r, zoopl data, echo = FALSE}
 
-```
-
-
-
-```{r}
+- Environmental data for each lake
+```{r, Envi}
 Field.raw <- read.table(file = "https://raw.githubusercontent.com/OscarFHC/OmniBEF_FieldNLA_public/master/FieldDat_raw.csv", 
                         sep = ",", header = TRUE)
+head(Field.raw[, c(4:6, 8:10)])
+```
 
+- Zooplankton species composition: site by species in density (ind./ml) table
+```{r, zoopl data}
+zp.raw <- read.table(file = "https://raw.githubusercontent.com/OscarFHC/Multidimension/main/Data/Field_zpComm.csv", 
+                        sep = ",", header = TRUE)
+zp <- zp.raw[,2:52]
+head(zp[,1:10])
+```
+
+## multiple dependent variable ($Y$)
+- Ordination, e.g., principle component analysis (PCA), canonical analysis (CA), non-metric multidimensional scaling (NMDS)
+- cluster analysis, e.g., K-means, K-medoids
+
+### PCA
+#### PCA by environmental variables 
+```{r, envi PCA}
+envi <- as.data.frame(scale(Field.raw[, c(4:6, 8:10)], center = TRUE, scale = TRUE))
+enviPCA <- prcomp(envi)
+autoplot(enviPCA, loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
+```
+
+#### PCA by zooplankton spcies
+```{r, sp PCA}
+zp <- as.data.frame(scale(zp, center = TRUE, scale = TRUE))
+spPCA <- prcomp(zp)
+autoplot(spPCA, loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
+```
+
+#### NMDS by environmental variables
+There is no "variation explained" in NMDS. 
+```{r, envi NMDS}
+enviNMDS <- metaMDS(Field.raw[, c(4:6, 8:10)], k=2, trymax=100)
+plot(enviNMDS)
+```
+
+### K-means
+
+```{r, envi Kmeans}
+set.seed(1032)
+autoplot(kmeans(envi, 2), data = envi)
+autoplot(kmeans(envi, 3), data = envi)
+autoplot(kmeans(envi, 4), data = envi)
+```
+
+**Within group variation** (total within sum of square) to determine the number of cluster
+```{r}
+set.seed(1032)
+envik2 <- kmeans(envi, 2)
+envik2
 ```
 
 
-
-## PCA
-
-
-
-
-
-
-Let use [air quality data in New York](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/airquality.html) to demonstrate today's topics.
-
-```{r, airquality data}
-data("airquality")
-head(airquality, 15)
-airquality = airquality %>%
-  subset(is.na(Solar.R)==FALSE & is.na(Ozone)==FALSE)
-```
-
-# Recap
-
-- Correlation describes whether there is "interdependence" between two variables.
-- Regression is to find the best model to relate the response variables (Y) to the explanatory variables, so that we can estimate  the model parameters for making inferences or forcasting. 
-
-# Multiple Regression
-
-Last time, we only deal with one explanatory variable (X). If we want to know how the response variable (Y) can be explained by multiple explanatory variable, we will have to do multiple regression
-
-## Collinearity 
-
-First thing is to know what explanatory variables should be included in the model.  
-The most important thing is to know your system and decide what should be included. This is where explanatory data analysis is important. 
-
-### useful `pair()` function 
-
-The `pair()` function allows you to have a glimpse of the relationship among the variables. 
-
-```{r, cor plot functions, echo=FALSE}
-panel.lm = function(x,y,...){
-    points(x,y,...)
-    abline(a = lm(y ~ x)$coefficients[1] , b = lm(y ~ x)$coefficients[2] , ...)
+```{r}
+set.seed(1032)
+wss <- function(k) {
+  kmeans(df, k, nstart = 10 )$tot.withinss
 }
 
-panel.cor = function(x, y, digits=2, prefix="", cex.cor){
-    usr = par("usr"); on.exit(par(usr)) 
-    par(usr = c(0, 1, 0, 1)) 
-    r = cor(x, y)
-    txt = format(c(r, 0.123456789), digits=digits)[1] 
-    txt = paste(prefix, txt, sep="") 
-    if(missing(cex.cor)) cex <- 0.8/strwidth(txt) 
- 
-    test = cor.test(x,y) 
-    # borrowed from printCoefmat
-    Signif = symnum(test$p.value, corr = FALSE, na = FALSE, 
-                    cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
-                    symbols = c("***", "**", "*", ".", " ")) 
- 
-    text(0.5, 0.5, txt, cex=3) 
-    text(0.8, 0.8, Signif, cex=3, col=2) 
+wss <- c()
+for (i in 1:ncol(envi)){
+  kn <- kmeans(envi, i)
+  wss <- c(wss, kn$tot.withinss)
 }
+
+plot(wss ~ c(1:ncol(envi)),
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
 ```
-
-```{r, pairs}
-pairs(airquality[,c(1:4)], lower.panel=panel.lm, upper.panel=panel.cor)
-```
-
-### `cor()` function 
-
-Correlation coefficients can also be calculated to help you understand the linear dependency among each variable. 
-
-```{r, cor coef}
-cor(airquality[,c(1:4)], use="na.or.complete")
-```
-
-In general, we don't want the explanatory varaibles in the model to be higly correlated. Otherwise it will bias the estimates of the regresion coefficients of explanaroty variables.  
-
-Take a look of the following simple example that demonstrate the impact of having highly correlated explanatory variables.  
-First we use a known $Y$ to generate two $X$ variables, so that we know what are the true relationship between $X$ and $Y$ and what the regression coefficients should be.  
-Specifically, I have 201 $Y$ values evenly ranged from 0 to 20. I generated $X_1$ by the formula, $Y = 3X_1 + 2 + noise$, so that the regression coefficient of $Y$ on $X_1$ should be around 3. Similarily, I generated $X_2$ by a different formula, $Y = 2X_2 - 3 + noise$, so that the regression coefficient of $Y$ on $X_2$ should be around 2. 
 
 ```{r}
-Y = seq(from=0, to=20, by=0.1)
-X1 = (Y-2)/3 + runif(length(Y), min=0.5, max=2)
-X2 = (Y+3)/2 + runif(length(Y), min=0.5, max=2)
-df = as.data.frame(cbind(Y, X1, X2))
-summary(lm(Y~X1, data=df))
-summary(lm(Y~X2, data=df))
+set.seed(1032)
+autoplot(kmeans(envi, 2), data = envi, frame = TRUE)
 ```
 
-So far so good. But if we what to have both $X_1$ and $X_2$ in the linear regression model, the regression coefficients for both $X_1$ and $X_2$ are way off the true values. This is because $X_1$ and $X_2$ are highly correlated, which we can see from the correlation plot the correlation coefficient between $X_1$ and $X_2$. 
+### K-medoids
+minimizes a sum of dissimilarities instead of a sum of squared 
+```{r}
+set.seed(1032)
+
+width <- c()
+for (i in 1:ncol(envi)){
+  width <- c(width, pam(envi, i)$silinfo$avg.width)
+}
+
+plot(width ~ c(2:ncol(envi)),
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters similarity (silhouette)")
+
+```
 
 ```{r}
-summary(lm(Y~X1+X2, data=df))
+set.seed(1032)
+autoplot(pam(envi, 3), frame = TRUE)
+```
+## multiple dependent variable ($Y$) + single independent variable ($X$)
+- Multivariate ANOVA (MANOVA)
+- Discriminant analysis
 
-plot(X1~X2)
-cor(X1, X2)
+### Multivariate ANOVA (MANOVA)
+
+Add `group` to indicate the grouping number
+```{r}
+set.seed(1032)
+envi_K3 <- pam(envi, 3)
+
+envi <- envi %>% mutate(group = envi_K3$clustering)
+
+head(envi)
 ```
 
----------------------------------------------------------------------------------------------------------------------------------
-
-__Exercise 1__
-
-Manipulate the above code to reduce the correlation between $X_1$ and $X_2$ and recalculate the regression coefficients. Explain what you find. 
-
-*hint:* Increase the random noise of $X_1$ and $X_2$ so that the two can be less correlated.
-
-```{r, include=FALSE}
-Y = seq(from=0, to=20, by=0.1)
-X1 = (Y-2)/3 + runif(length(Y), min=5, max=10)
-X2 = (Y+3)/2 + runif(length(Y), min=5, max=10)
-df = as.data.frame(cbind(Y, X1, X2))
-summary(lm(Y~X1, data=df))
-summary(lm(Y~X2, data=df))
-
-summary(lm(Y~X1+X2, data=df))
-
-plot(X1~X2)
-cor(X1, X2)
+Perform MANOVA to test grouping significance
+```{r}
+envi_MAN <- manova(cbind(pH, Cond, Temp, PAR, TN_mean, TP_mean) ~ group, data = envi)
+summary(envi_MAN)
 ```
 
----------------------------------------------------------------------------------------------------------------------------------
-
-In the worst case, if two explanatory varaibles are perfectly correlated, regression coefficients can not be estimates. Take the following creative case for example...
-
-```{r, perfect collinearity}
-y=seq(from=1, to=20, by=0.1)
-y=runif(length(y), min=3, max=5)
-x1=seq(from=5, to=24, by=0.1)
-x2=x1*2+5
-df = data.frame(y, x1, x2)
-pairs(df)
-cor(df)
-```
-
-```{r, echo=FALSE, eval=FALSE}
-summary(lm(y~x1+x2, dat=df))
-```
-
-We can see that when x1 and x2 are perfectly correlated, regression coefficients of one of them can not be estimated. This is a rather extreme and simple example that you might never encounter in your entire life, but it is worthy to be aware the this is due to the problem of [singularity](https://en.wikipedia.org/wiki/Singularity_(mathematics)) in matrix algebra. 
-
-Another more formal way to diagnose how the magnitude of collinearity among explanatory variables is the [variance inflation factor (VIF)](https://en.wikipedia.org/wiki/Variance_inflation_factor).  
-
-$$VIF_i = \frac{1}{1 -{R_i}^2}$$, where ${R_i}^2$ is the ${R}^2$ of the linear model with ${X_i}$ being the response variable (i.e. at the left side of the equation) and the other ${X_s}$ being the explanatory variables (at the right hand side of the equation).  
-To the best of my knowledge, there is no built-in funciton that allows us to calculate VIF automatically, so we'll have to write our own...In fact, it's not hard to write. For example the VIF for radiation can be calculated as follow. 
-
-```{r, package calculating VIF, echo=FALSE, eval=FALSE}
-library(usdm)
-df = airquality
-vif(df)
-```
-
-```{r, VIF}
-vif.rad = 1/(1 - summary(lm(Solar.R~Wind+Ozone, dat=airquality))$r.squared)
-vif.rad
-```
-
-Generally we want the VIP to be smaller than 5 or 10 (some say 20). However, neither VIF or correlation coefficients or plots are not strick rules to determine whether a correlated variables should be discard from the model or not. They only alert you the potential bias that could result from collinearity. 
-
-## Model comparision
-
-### $F$-test
-
-After deciding which explanatory variables to include in the model, the next step is to compare each model. A common way to compare the model is to do $F$-test. The concept of $F$-test is to compare the ability of the models to explain the varaiance of the response varaible. To do so, $F$-statistic is calculated by the following formula,
-
-$$F = \frac {(\frac{RSS_1-RSS_2}{p_2-p_1})}{(\frac{RSS_2}{n-p_2})}\ ,$$
-
-where $RSS_i$ is the residual sum of square of $model_i$, $p_i$ number of parameters in $model_i$, $n$ is the sample size. Basically, $n-p_i$ is the degree of freedom of $model_i$. The probability of this $F$-statistic in the $F$ distibution (with degree of freedom $p_2-p_1$ and $n-p_2$), is the probability for model 1 to explain same amount of variance with model 2. 
-
-Let's compare the following two models with the Ozone data set.
-
-$$Model_1: Temp = \beta_0 + \beta_1 * Wind + \epsilon_1$$
-
-$$Model_2: Temp = \beta_0' + \beta_1' * Wind + + \beta_2' * Radiation + \epsilon_2$$
-
-Here $Model_1$ is nested in $Model_2$, because if we let all levels of Radiation to have same effects on Temperature, we have $Model_1$. 
-
-```{r, two model to compare}
-mod1 = lm(Temp~Wind, data=airquality)
-summary(mod1)
-mod2 = lm(Temp~Wind+Solar.R, data=airquality)
-summary(mod2)
-```
-
-Before comparison, one thing can be pointed out. The regression coefficient of wind in the two models change a little. This is because wind and radiation is not perfectly independent. You should be able to see the regression coefficient of radiation does change a little bit. 
-
-Let's compare the two models. Since we know that it follows $F$ distribution, we use `anova()` function to perform the `F-test`. 
-
-```{r, F-test}
-anova(mod1, mod2)
-```
-
-From the output table, we see that $RSS$ of _mod2_ is `r round(anova(mod1, mod2)[2,2],3)` and the $RSS$ of _mod1_ is `r round(anova(mod1, mod2)[1,2],3)`. The $F$ statistic is `r round(anova(mod1, mod2)[2,5],3)`. The interpretation of these results is that _mod2_ explains significantly greater amount of varaince comparing to _mod1_, because the probability for _mod1_ to explain the same amount of variance as _mod2_ is `r round(anova(mod1, mod2)[2,6],6)`. 
-
----------------------------------------------------------------------------------------------------------------------------------
-
-__Exercise 2__ 
-
-[Bonus, 2 pts] Challenge yourself by calculateing the $RSS$ of the two models, $F$ statistics (1 pt) and the p-value (1 pt) all by yourself (i.e. not using the `anova()` function)
-
-```{r, include=FALSE}
-RSS1 = sum(residuals(mod1)^2)
-RSS2 = sum(residuals(mod2)^2)
-
-f = ((RSS1-RSS2)/(3-2))/(RSS2/(nrow(airquality)-3))
-
-f.p = 1-pf(f, df1=(3-2), df2=(nrow(airquality)-3))
-```
-
-1. Compare a third model (_mod3_) with ozone varaible as the third independent variable to _mod1_ and _mod2_ above. Does it explain more variance? Does it give you reasonable estimate of regressino coefficients?
-
-```{r, include=FALSE}
-mod3 = lm(Temp~Wind+Solar.R+Ozone, data=airquality)
-summary(mod3)
-anova(mod1, mod2, mod3)
-```
-
----------------------------------------------------------------------------------------------------------------------------------
-
-> <span style="color:red"> Important </span> 
-> $F$-test can only be used to compare the "_nested_" models!
-
-### Other methods of model comparision/selection
-
-There are at least two other way to compare different models.  
-
-1. Likelihood ratio test. This is very useful especially when comparing non linear models. However, like the $F$-test, the model will also need to be nested for a valid likelihood ratio test. Basically, it it calculating the maximum likelihood of different models, and take the ratio of the two. This ratio will follow $\chi^2$ distribution. Similarily, by finding the probability of observatin the ratio according to the $\chi^2$ distribution, we can know which model performs better. The performance of the model in this sense is not the amount of variance of response variable being explained, but the likelihood of the model to generate the observed data. The model that has higer probability is considered as the "better" model.  
-
-2. [AIC](https://en.wikipedia.org/wiki/Akaike_information_criterion) value comparison. AIC is the informatino cirteria based on the maximum likelihood of the model. AIC is expecially useful when comparing non-nested models. The AIC can not give us an idea about how probable one model is comparing to another. Instead, it only informs which mode would loss less information while taking the number of parameters into account. Generally, the smaller the AIC is the less information is lossed (better performed model). The rule of thumb is that AIC difference greater than 10 can be considered as a significant difference, although there is not strict rules especially when AIC difference is 4-7. 
-
-Many other [model comparision/selection](https://en.wikipedia.org/wiki/Model_selection) methods are available. However, they are beyond the scope of this class. 
-
----------------------------------------------------------------------------------------------------------------------------------
-
-__Exercise 3__
-
-Compare the AIC of the three models above _mod1_, _mod2_, and _mod3_. Do you have different conclusion in terms of which model performs better?
-
-```{r, include=FALSE}
-AIC(mod1)
-AIC(mod2)
-AIC(mod3)
-```
-
----------------------------------------------------------------------------------------------------------------------------------
-
-## Ockham's razor
-
-Paremeters should be used with parsimony in modeling, so that any parameter that does not significantly contribute to the model (e.g. increase the $R^2$ in an important way) should be eliminated. 
-
-
-## Partial regresion coefficient
-
-Let say we decide to use _mod2_ as the final model to explain the data. How do we interprete the regression coefficients?
-
-The regression coefficient of Wind variable is the effect of Wind on Temperature when the effect of Radiation is being controlled for. 
-
-This coefficient can also be calculated by the following linear regressin model.
-
-$$Temp_{res|rad} = \beta_0 + \beta_1 Wind_{res|rad}\ ,$$
-
-where $Temp_{res|rad}$ is the residuals of temperature regressed on radiation and $Wind_{res|rad}$ is the residuals of wind regressed on radiation. From the formula, we see that the effects of wind is estimated when taking the influences of radiation into account. 
+Look for the variable(s) that is different among group
 
 ```{r}
-mod.r = lm(Temp~Solar.R, data=airquality)
-mod.wr = lm(Wind~Solar.R, data=airquality)
-summary(lm(residuals(mod.r)~residuals(mod.wr)))
+summary.aov(envi_MAN)
 ```
 
-We see the estimated effect is `r summary(lm(residuals(mod.r)~residuals(mod.wr)))$coefficient[2,1]` identical to the one estimated from the multiple regression (`r summary(mod2)$coefficient[2,1]`). This coefficient is the partical regression coefficient. 
-
-Note that this is different from the following model.
-
-$$Temp_{res|rad} = \beta_0' + \beta_1' Wind\ ,$$
-
-The above model does not take the influences of Radiation on Wind into account. 
+### Discriminant analysis
+To find a linear combination of features that characterizes or separates two or more classes of objects or events
+```{r}
+envi_LDA <- lda(group ~ pH + Cond + Temp + PAR + TN_mean + TP_mean, data = envi)
+envi_LDA
+```
 
 ```{r}
-summary(lm(residuals(mod.r)~Wind, data=airquality))
+cbind(envi, predict(envi_LDA)$x) %>%
+  ggplot(aes(LD1, LD2, color = as.factor(group))) +
+  geom_point() +
+  labs(color = "group")
 ```
 
+## multiple dependent variable ($Y$) + multiple independent variable ($X$)
+- Redundancy analysis (RDA)
+- Canonical correspondence analysis (CCA)
+
+### Redundancy analysis (RDA)
+
+```{r}
+RDA <- capscale(zp ~ pH + Cond + Temp + PAR + TN_mean + TP_mean, data = envi)
+plot(RDA)
+plot(RDA, display = c("sites", "cn"))
+```
+
+Can manually determine how to calculate the dissimilarity among sites
+```{r}
+zp.raw <- read.table(file = "https://raw.githubusercontent.com/OscarFHC/Multidimension/main/Data/Field_zpComm.csv", 
+                        sep = ",", header = TRUE)
+zp <- zp.raw[,2:52]
+RDA_br <- capscale(zp ~ pH + Cond + Temp + PAR + TN_mean + TP_mean, data = envi, distance = "bray")
+plot(RDA_br)
+plot(RDA_br, display = c("sites", "cn"))
+```
