@@ -52,6 +52,27 @@ output:
 - Redundancy analysis (RDA)
 - Canonical correspondence analysis (CCA)
 
+Let use [air quality data in New York](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/airquality.html) to demonstrate today's topics.
+
+# Examples
+Data is from my field work.
+![](D:/Dropbox/Courses/Multidimension/Figs/SiteMap.png)
+- Zooplankton species composition: site by species in density (ind./ml) table
+
+
+
+
+
+```r
+Field.raw <- read.table(file = "https://raw.githubusercontent.com/OscarFHC/OmniBEF_FieldNLA_public/master/FieldDat_raw.csv", 
+                        sep = ",", header = TRUE)
+```
+
+
+
+## PCA
+
+
 
 
 
@@ -154,18 +175,18 @@ summary(lm(Y~X1, data=df))
 ## 
 ## Residuals:
 ##      Min       1Q   Median       3Q      Max 
-## -2.49808 -1.03832 -0.06544  1.18063  2.48670 
+## -2.42585 -1.14203  0.08924  1.10423  2.29548 
 ## 
 ## Coefficients:
 ##             Estimate Std. Error t value Pr(>|t|)    
-## (Intercept) -1.16149    0.20097  -5.779 2.86e-08 ***
-## X1           2.83981    0.04561  62.267  < 2e-16 ***
+## (Intercept) -1.42470    0.20631  -6.906 6.57e-11 ***
+## X1           2.92567    0.04735  61.793  < 2e-16 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 1.288 on 199 degrees of freedom
-## Multiple R-squared:  0.9512,	Adjusted R-squared:  0.9509 
-## F-statistic:  3877 on 1 and 199 DF,  p-value: < 2.2e-16
+## Residual standard error: 1.298 on 199 degrees of freedom
+## Multiple R-squared:  0.9505,	Adjusted R-squared:  0.9502 
+## F-statistic:  3818 on 1 and 199 DF,  p-value: < 2.2e-16
 ```
 
 ```r
@@ -179,18 +200,18 @@ summary(lm(Y~X2, data=df))
 ## 
 ## Residuals:
 ##      Min       1Q   Median       3Q      Max 
-## -1.52495 -0.70447 -0.09032  0.59769  1.84474 
+## -1.69751 -0.71126 -0.09628  0.78852  1.60472 
 ## 
 ## Coefficients:
 ##             Estimate Std. Error t value Pr(>|t|)    
-## (Intercept) -5.13769    0.15994  -32.12   <2e-16 ***
-## X2           1.93661    0.01913  101.24   <2e-16 ***
+## (Intercept) -4.99376    0.16687  -29.93   <2e-16 ***
+## X2           1.94020    0.02017   96.21   <2e-16 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 0.8048 on 199 degrees of freedom
-## Multiple R-squared:  0.981,	Adjusted R-squared:  0.9809 
-## F-statistic: 1.025e+04 on 1 and 199 DF,  p-value: < 2.2e-16
+## Residual standard error: 0.846 on 199 degrees of freedom
+## Multiple R-squared:  0.979,	Adjusted R-squared:  0.9788 
+## F-statistic:  9257 on 1 and 199 DF,  p-value: < 2.2e-16
 ```
 
 So far so good. But if we what to have both $X_1$ and $X_2$ in the linear regression model, the regression coefficients for both $X_1$ and $X_2$ are way off the true values. This is because $X_1$ and $X_2$ are highly correlated, which we can see from the correlation plot the correlation coefficient between $X_1$ and $X_2$. 
@@ -207,33 +228,33 @@ summary(lm(Y~X1+X2, data=df))
 ## 
 ## Residuals:
 ##     Min      1Q  Median      3Q     Max 
-## -1.4750 -0.5168  0.0024  0.4892  1.7822 
+## -1.5837 -0.5664 -0.0123  0.5495  1.3672 
 ## 
 ## Coefficients:
 ##             Estimate Std. Error t value Pr(>|t|)    
-## (Intercept) -4.19456    0.16930 -24.776   <2e-16 ***
-## X1           0.83222    0.09086   9.159   <2e-16 ***
-## X2           1.39749    0.06102  22.903   <2e-16 ***
+## (Intercept) -4.13552    0.16980 -24.355   <2e-16 ***
+## X1           0.88944    0.09842   9.037   <2e-16 ***
+## X2           1.37971    0.06431  21.454   <2e-16 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 0.6762 on 198 degrees of freedom
-## Multiple R-squared:  0.9866,	Adjusted R-squared:  0.9865 
-## F-statistic:  7301 on 2 and 198 DF,  p-value: < 2.2e-16
+## Residual standard error: 0.7136 on 198 degrees of freedom
+## Multiple R-squared:  0.9851,	Adjusted R-squared:  0.985 
+## F-statistic:  6546 on 2 and 198 DF,  p-value: < 2.2e-16
 ```
 
 ```r
 plot(X1~X2)
 ```
 
-![](Multidimension-Demo_files/figure-html/unnamed-chunk-2-1.png)<!-- -->
+![](Multidimension-Demo_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
 
 ```r
 cor(X1, X2)
 ```
 
 ```
-## [1] 0.9646849
+## [1] 0.9643834
 ```
 
 ---------------------------------------------------------------------------------------------------------------------------------
@@ -267,10 +288,10 @@ cor(df)
 ```
 
 ```
-##             y         x1         x2
-## y  1.00000000 0.03091025 0.03091025
-## x1 0.03091025 1.00000000 1.00000000
-## x2 0.03091025 1.00000000 1.00000000
+##              y          x1          x2
+## y   1.00000000 -0.03919429 -0.03919429
+## x1 -0.03919429  1.00000000  1.00000000
+## x2 -0.03919429  1.00000000  1.00000000
 ```
 
 

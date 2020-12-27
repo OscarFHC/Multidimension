@@ -59,6 +59,29 @@ library(tidyverse)
 - Redundancy analysis (RDA)
 - Canonical correspondence analysis (CCA)
 
+Let use [air quality data in New York](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/airquality.html) to demonstrate today's topics.
+
+# Examples
+Data is from my field work.
+![](D:/Dropbox/Courses/Multidimension/Figs/SiteMap.png)
+- Zooplankton species composition: site by species in density (ind./ml) table
+```{r, zoopl data, echo = FALSE}
+
+```
+
+
+
+```{r}
+Field.raw <- read.table(file = "https://raw.githubusercontent.com/OscarFHC/OmniBEF_FieldNLA_public/master/FieldDat_raw.csv", 
+                        sep = ",", header = TRUE)
+
+```
+
+
+
+## PCA
+
+
 
 
 
